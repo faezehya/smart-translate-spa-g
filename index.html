@@ -1,0 +1,2820 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Smart Translate SPA - مترجم هوشمند اسناد با پشتیبانی از مدل‌های محلی Ollama، ذخیره‌سازی دائمی در مرورگر (IndexedDB) و سیستم ادامه ترجمه">
+  <title>Smart Translate SPA | مترجم اسناد آبی شب (Ollama & Cloud)</title>
+
+  <!-- Google Fonts: Vazirmatn & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Document Parsing CDNs (PDF, Word, Markdown, JSZip) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       1. MIDNIGHT BLUE DESIGN SYSTEM & DESIGN TOKENS
+       ========================================================================== */
+    :root {
+      --font-fa: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-en: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --bg-midnight-darkest: #060a12;
+      --bg-midnight-base: #0a1120;
+      --bg-midnight-surface: #0f1a2e;
+      --bg-midnight-elevated: #16243f;
+      --bg-midnight-glass: rgba(15, 26, 46, 0.88);
+
+      --border-subtle: #1e3152;
+      --border-strong: #2c4470;
+      --border-glow: rgba(56, 189, 248, 0.35);
+
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a9c9;
+      --text-muted: #5e779d;
+
+      --blue-accent: #38bdf8;
+      --blue-accent-hover: #0ea5e9;
+      --blue-glow: rgba(56, 189, 248, 0.22);
+      
+      --royal-blue: #2563eb;
+      --emerald-accent: #10b981;
+      --amber-accent: #f59e0b;
+      --rose-accent: #f43f5e;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+
+      --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 8px 16px -2px rgba(3, 7, 18, 0.5);
+      --shadow-lg: 0 16px 32px -4px rgba(3, 7, 18, 0.65);
+      --shadow-glow: 0 0 25px var(--blue-glow);
+
+      --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html:not(.dark) {
+      --bg-midnight-darkest: #f0f5ff;
+      --bg-midnight-base: #f8faff;
+      --bg-midnight-surface: #ffffff;
+      --bg-midnight-elevated: #e6eefa;
+      --bg-midnight-glass: rgba(255, 255, 255, 0.92);
+
+      --border-subtle: #cbdcf2;
+      --border-strong: #a6c4eb;
+      --border-glow: rgba(37, 99, 235, 0.25);
+
+      --text-primary: #0a1733;
+      --text-secondary: #334d75;
+      --text-muted: #6a82a6;
+
+      --blue-accent: #0284c7;
+      --blue-accent-hover: #0369a1;
+      --blue-glow: rgba(2, 132, 199, 0.15);
+      
+      --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.12);
+    }
+
+    /* ==========================================================================
+       2. GLOBAL RESETS & TYPOGRAPHY
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-fa);
+      background: radial-gradient(circle at 50% 0%, var(--bg-midnight-surface) 0%, var(--bg-midnight-darkest) 100%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: 0.925rem;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      transition: all var(--transition-normal);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--blue-accent);
+      outline-offset: 2px;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--blue-accent); }
+
+    .font-en { font-family: var(--font-en); direction: ltr; text-align: left; }
+    .font-fa { font-family: var(--font-fa); direction: rtl; text-align: right; }
+
+    /* ==========================================================================
+       3. HEADER & TOOLBAR (RESPONSIVE)
+       ========================================================================== */
+    .app-header {
+      background-color: var(--bg-midnight-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--blue-accent), var(--royal-blue));
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .engine-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      max-width: 170px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--blue-accent);
+      box-shadow: 0 0 10px var(--blue-accent);
+      flex-shrink: 0;
+    }
+    .status-dot.active { background-color: var(--emerald-accent); box-shadow: 0 0 10px var(--emerald-accent); }
+    .status-dot.warning { background-color: var(--amber-accent); box-shadow: 0 0 10px var(--amber-accent); }
+    .status-dot.danger { background-color: var(--rose-accent); box-shadow: 0 0 10px var(--rose-accent); }
+
+    .btn-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-midnight-elevated);
+      flex-shrink: 0;
+    }
+
+    .btn-icon:hover, .btn-icon:active {
+      color: var(--text-primary);
+      border-color: var(--blue-accent);
+      background-color: var(--bg-midnight-surface);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-icon.danger-hover:hover, .btn-icon.danger-hover:active {
+      color: var(--rose-accent);
+      border-color: var(--rose-accent);
+    }
+
+    /* ==========================================================================
+       4. NAVIGATION TABS (WORKSPACE vs HISTORY)
+       ========================================================================== */
+    .main-nav-bar {
+      max-width: 1540px;
+      width: 100%;
+      margin: 1rem auto 0 auto;
+      padding: 0 1rem;
+    }
+
+    .main-nav-tabs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--bg-midnight-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 0.35rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .main-nav-btn {
+      flex: 1;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.92rem;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      transition: all var(--transition-normal);
+    }
+
+    .main-nav-btn:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-midnight-elevated);
+    }
+
+    .main-nav-btn.active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(37, 99, 235, 0.22));
+      border: 1px solid var(--border-glow);
+      color: var(--blue-accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-count-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.15rem 0.55rem;
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      color: var(--text-primary);
+      font-family: var(--font-en);
+    }
+
+    .main-nav-btn.active .nav-count-badge {
+      background-color: var(--blue-accent);
+      color: #040812;
+      border-color: transparent;
+    }
+
+    /* ==========================================================================
+       5. MAIN WRAPPER & COMPONENTS
+       ========================================================================== */
+    .main-content {
+      flex: 1;
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Dropzone */
+    .dropzone-container {
+      border: 2px dashed var(--border-strong);
+      background: linear-gradient(180deg, var(--bg-midnight-surface) 0%, rgba(15, 26, 46, 0.6) 100%);
+      border-radius: var(--radius-xl);
+      padding: 2.5rem 1.25rem;
+      text-align: center;
+      transition: all var(--transition-normal);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .dropzone-container:hover, .dropzone-container.drag-over {
+      border-color: var(--blue-accent);
+      background-color: var(--bg-midnight-elevated);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .dropzone-icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      color: var(--blue-accent);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .dropzone-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 0.4rem;
+    }
+
+    .dropzone-desc {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      max-width: 520px;
+      margin: 0 auto 1.25rem auto;
+      line-height: 1.5;
+    }
+
+    .format-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.4rem;
+      margin-top: 1rem;
+    }
+
+    .badge-pill {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      background: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      color: var(--text-secondary);
+      font-family: var(--font-en);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue-accent), var(--royal-blue));
+      color: #fff;
+      font-weight: 700;
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary:hover, .btn-primary:active {
+      box-shadow: var(--shadow-glow);
+      filter: brightness(1.1);
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius-md);
+    }
+    .btn-secondary:hover, .btn-secondary:active {
+      background-color: var(--bg-midnight-surface);
+      border-color: var(--blue-accent);
+    }
+
+    .btn-danger-outline {
+      background-color: transparent;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: var(--rose-accent);
+      padding: 0.5rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .btn-danger-outline:hover {
+      background-color: rgba(244, 63, 94, 0.12);
+      border-color: var(--rose-accent);
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
+    }
+
+    /* Queue Section */
+    .queue-section {
+      background-color: var(--bg-midnight-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    /* Batch Scope & Page Filter Toolbar */
+    .batch-scope-toolbar {
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.9rem;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+    }
+
+    .queue-card-list {
+      display: grid;
+      gap: 0.65rem;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-left: 0.2rem;
+    }
+
+    .file-card {
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      transition: all var(--transition-normal);
+      cursor: pointer;
+    }
+
+    .file-card.active {
+      border-color: var(--blue-accent);
+      background-color: rgba(56, 189, 248, 0.08);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.12);
+    }
+
+    .progress-bar-wrap {
+      width: 110px;
+      height: 7px;
+      background-color: var(--bg-midnight-darkest);
+      border-radius: 9999px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--royal-blue), var(--blue-accent));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Workspace & Split Pane */
+    .workspace-section {
+      background-color: var(--bg-midnight-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .workspace-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background-color: var(--bg-midnight-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    /* Mobile Pane View Switcher */
+    .mobile-view-tabs {
+      display: none;
+      width: 100%;
+      background-color: var(--bg-midnight-darkest);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.35rem 0.5rem;
+      gap: 0.35rem;
+    }
+
+    .mobile-tab-btn {
+      flex: 1;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      background: transparent;
+      text-align: center;
+    }
+
+    .mobile-tab-btn.active {
+      background-color: var(--bg-midnight-elevated);
+      color: var(--blue-accent);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .split-pane-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      flex: 1;
+      height: calc(100vh - 430px);
+      min-height: 480px;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .pane-source {
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .pane-header {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background-color: var(--bg-midnight-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pane-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      font-size: 0.95rem;
+      line-height: 1.85;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .source-chunk-block, .target-chunk-block {
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: all var(--transition-normal);
+      position: relative;
+    }
+
+    .source-chunk-block { background-color: var(--bg-midnight-elevated); }
+    .target-chunk-block {
+      background-color: rgba(56, 189, 248, 0.04);
+      border-color: rgba(56, 189, 248, 0.15);
+    }
+
+    .target-chunk-block[contenteditable="true"]:focus {
+      border-color: var(--blue-accent);
+      background-color: rgba(56, 189, 248, 0.09);
+      outline: none;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .chunk-highlight {
+      border-color: var(--blue-accent) !important;
+      box-shadow: 0 0 12px var(--blue-glow);
+    }
+
+    .chunk-index-tag {
+      position: absolute;
+      top: 0.3rem;
+      left: 0.45rem;
+      font-size: 0.65rem;
+      font-family: var(--font-en);
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+
+    /* Diagnostics Banner */
+    .cors-alert-card {
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      font-size: 0.8rem;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .code-pill {
+      background-color: var(--bg-midnight-darkest);
+      color: var(--blue-accent);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-family: var(--font-en);
+      font-size: 0.75rem;
+      display: inline-block;
+      user-select: all;
+      word-break: break-all;
+    }
+
+    /* ==========================================================================
+       6. TRANSLATION HISTORY TAB & CARDS
+       ========================================================================== */
+    .history-section {
+      background-color: var(--bg-midnight-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .history-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.85rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 1rem;
+    }
+
+    .history-card {
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      transition: all var(--transition-normal);
+      position: relative;
+    }
+
+    .history-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: var(--shadow-md);
+    }
+
+    .history-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.65rem;
+    }
+
+    .history-file-title {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      word-break: break-word;
+    }
+
+    .history-meta-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .status-badge.status-completed {
+      background-color: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--emerald-accent);
+    }
+
+    .status-badge.status-processing {
+      background-color: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--blue-accent);
+    }
+
+    .status-badge.status-paused {
+      background-color: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--amber-accent);
+    }
+
+    .status-badge.status-error {
+      background-color: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: var(--rose-accent);
+    }
+
+    .status-badge.status-queued {
+      background-color: rgba(148, 169, 201, 0.12);
+      border: 1px solid rgba(148, 169, 201, 0.3);
+      color: var(--text-secondary);
+    }
+
+    .history-progress-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .history-progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+
+    .history-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .history-empty-state {
+      text-align: center;
+      padding: 3.5rem 1rem;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    /* Drawer & Modals */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 15, 0.8);
+      backdrop-filter: blur(6px);
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-normal);
+    }
+
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      max-width: 480px;
+      background-color: var(--bg-midnight-surface);
+      border-left: 1px solid var(--border-subtle);
+      z-index: 100;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-header {
+      padding: 1.15rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .drawer-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 0.6rem 0.85rem;
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      transition: border-color var(--transition-normal);
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--blue-accent);
+      box-shadow: 0 0 8px var(--blue-glow);
+    }
+
+    .form-help {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .tab-nav {
+      display: flex;
+      background-color: var(--bg-midnight-elevated);
+      border-radius: var(--radius-md);
+      padding: 0.25rem;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.45rem;
+      font-size: 0.82rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .tab-btn.active {
+      background-color: var(--bg-midnight-surface);
+      color: var(--blue-accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue-accent);
+      cursor: pointer;
+      height: 6px;
+      border-radius: 9999px;
+    }
+
+    /* ==========================================================================
+       7. FOOTER STYLING
+       ========================================================================== */
+    .app-footer {
+      margin-top: auto;
+      background-color: var(--bg-midnight-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid var(--border-subtle);
+      padding: 1rem 1.25rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+    }
+
+    .footer-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      line-height: 1.7;
+    }
+
+    .footer-content strong {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .footer-divider {
+      color: var(--border-strong);
+      margin: 0 0.25rem;
+    }
+
+    .icon-heart {
+      width: 16px;
+      height: 16px;
+      fill: var(--rose-accent);
+      color: var(--rose-accent);
+      display: inline-block;
+      vertical-align: middle;
+      animation: heartBeat 1.8s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
+
+    @keyframes heartBeat {
+      0%, 100% { transform: scale(1); }
+      14% { transform: scale(1.22); }
+      28% { transform: scale(1); }
+      42% { transform: scale(1.22); }
+      70% { transform: scale(1); }
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1.25rem;
+      left: 1rem;
+      right: 1rem;
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 380px;
+      margin: 0 auto;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background-color: var(--bg-midnight-elevated);
+      border: 1px solid var(--border-subtle);
+      border-right: 4px solid var(--blue-accent);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 0.84rem;
+    }
+    .toast.success { border-right-color: var(--emerald-accent); }
+    .toast.error { border-right-color: var(--rose-accent); }
+    .toast.warning { border-right-color: var(--amber-accent); }
+
+    @keyframes toastIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 24px; height: 24px; }
+    .icon-xl { width: 40px; height: 40px; }
+    .hidden { display: none !important; }
+
+    .pulse-dot {
+      animation: pulseGlow 2s infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.75; }
+    }
+
+    /* ==========================================================================
+       8. MOBILE MEDIA QUERIES & RESPONSIVE TWEAKS (< 768px)
+       ========================================================================== */
+    @media (max-width: 768px) {
+      .app-header {
+        padding: 0.6rem 0.85rem;
+      }
+      .brand-title {
+        font-size: 0.98rem;
+      }
+      .brand-subtitle {
+        display: none;
+      }
+      .engine-badge {
+        max-width: 110px;
+        padding: 0.3rem 0.55rem;
+        font-size: 0.72rem;
+      }
+      .btn-icon {
+        width: 34px;
+        height: 34px;
+      }
+      .main-content {
+        padding: 0.85rem 0.65rem;
+        gap: 1rem;
+      }
+      .history-grid {
+        grid-template-columns: 1fr;
+      }
+      .dropzone-container {
+        padding: 2rem 1rem;
+      }
+      .dropzone-title {
+        font-size: 1.1rem;
+      }
+      .queue-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .queue-header > div:last-child {
+        display: flex;
+        width: 100%;
+        gap: 0.5rem;
+      }
+      .queue-header > div:last-child button {
+        flex: 1;
+      }
+      .mobile-view-tabs {
+        display: flex;
+      }
+      .split-pane-container {
+        grid-template-columns: 1fr;
+        height: calc(100vh - 380px);
+        min-height: 400px;
+      }
+      .pane-source {
+        border-left: none;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .split-pane-container[data-mobile-view="source"] .pane-target {
+        display: none;
+      }
+      .split-pane-container[data-mobile-view="target"] .pane-source {
+        display: none;
+      }
+      .split-pane-container[data-mobile-view="both"] .pane-source,
+      .split-pane-container[data-mobile-view="both"] .pane-target {
+        display: flex;
+        height: 50%;
+      }
+      .drawer {
+        max-width: 100vw;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       HEADER
+       ========================================================================== -->
+  <header class="app-header">
+    <div class="brand-group">
+      <div class="brand-icon">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>
+      </div>
+      <div class="brand-title">
+        <span>Smart Translate SPA</span>
+        <span class="brand-subtitle">مترجم اسناد سمت کاربر • آبی شب</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="engine-badge" id="engineStatusBadge" title="وضعیت موتور ترجمه">
+        <div class="status-dot pulse-dot" id="engineStatusDot"></div>
+        <span id="engineStatusText">درحال اتصال...</span>
+      </div>
+
+      <button class="btn-icon" id="quickSyncOllamaBtn" title="همگام‌سازی و بررسی مجدد Ollama" aria-label="همگام‌سازی">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+      </button>
+
+      <button class="btn-icon danger-hover" id="clearQueueBtn" title="پاکسازی صف فعلی اسناد (تاریخچه باقی می‌ماند)" aria-label="پاکسازی صف">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+      </button>
+
+      <button class="btn-icon" id="themeToggleBtn" title="تغییر تم" aria-label="تم">
+        <svg class="icon" id="themeIconSun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon hidden" id="themeIconMoon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+
+      <button class="btn-icon" id="openSettingsBtn" title="تنظیمات جامع" aria-label="تنظیمات">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN NAVIGATION TABS (WORKSPACE vs HISTORY)
+       ========================================================================== -->
+  <div class="main-nav-bar">
+    <nav class="main-nav-tabs">
+      <button class="main-nav-btn active" id="navWorkspaceTabBtn" data-view="workspace">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>محیط ترجمه و صف اسناد</span>
+      </button>
+
+      <button class="main-nav-btn" id="navHistoryTabBtn" data-view="history">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>تاریخچه ترجمه‌ها</span>
+        <span class="nav-count-badge" id="historyCountBadge">0</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==========================================================================
+       MAIN CONTENT
+       ========================================================================== -->
+  <main class="main-content">
+    
+    <!-- VIEW CONTAINER 1: TRANSLATION WORKSPACE & QUEUE -->
+    <div id="workspaceViewContainer" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      
+      <!-- 1. DROPZONE -->
+      <section class="dropzone-container" id="dropzone">
+        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt,.md,.epub,.html,.rtf" class="hidden">
+        <div class="dropzone-icon-wrap">
+          <svg class="icon icon-xl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        </div>
+        <h2 class="dropzone-title">فایل‌های سند را انتخاب یا اینجا رها کنید</h2>
+        <p class="dropzone-desc">پردازش و ذخیره اسناد به صورت ۱۰۰٪ آفلاین و دائمی در حافظه مرورگر شما (IndexedDB) ثبت می‌شود.</p>
+        
+        <div style="display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap;">
+          <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            انتخاب فایل سند
+          </button>
+          <button class="btn-secondary" id="loadSampleBtn">
+            بارگذاری متن تستی
+          </button>
+        </div>
+
+        <div class="format-pills">
+          <span class="badge-pill">PDF (.pdf)</span>
+          <span class="badge-pill">Word (.docx)</span>
+          <span class="badge-pill">Markdown (.md)</span>
+          <span class="badge-pill">EPUB (.epub)</span>
+          <span class="badge-pill">Plain Text (.txt)</span>
+        </div>
+      </section>
+
+      <!-- 2. QUEUE & PAGE/BATCH CONTROLLER -->
+      <section class="queue-section hidden" id="queueSection">
+        <div class="queue-header">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span style="font-weight: 800;">صف پردازش اسناد جاری</span>
+            <span class="badge-pill" id="queueCountBadge">0 فایل</span>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn-primary" id="startBatchBtn">
+              <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              شروع ترجمه
+            </button>
+            <button class="btn-secondary" id="pauseBatchBtn" disabled>
+              <svg class="icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              توقف
+            </button>
+          </div>
+        </div>
+
+        <!-- Scope / Range Filter -->
+        <div class="batch-scope-toolbar">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+            <label for="batchScopeSelect" style="font-weight: 700;">دامنه ترجمه در این نوبت:</label>
+          </div>
+          
+          <select id="batchScopeSelect" class="form-select" style="padding: 0.35rem 0.6rem; font-size: 0.82rem; width: auto; flex: 1; min-width: 140px;">
+            <option value="all" selected>کل سند (تمام بخش‌های باقی‌مانده)</option>
+            <option value="count_3">۳ بخش بعدی</option>
+            <option value="count_5">۵ بخش بعدی</option>
+            <option value="count_10">۱۰ بخش بعدی</option>
+            <option value="custom_range">تعیین محدوده مشخص (از بخش تا بخش)...</option>
+          </select>
+
+          <!-- Custom Range Inputs -->
+          <div id="customRangeGroup" class="hidden" style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">از:</span>
+            <input type="number" id="rangeFromInput" class="form-input font-en" value="1" min="1" style="width: 60px; padding: 0.25rem 0.4rem; text-align: center;">
+            <span style="color: var(--text-secondary); font-size: 0.8rem;">تا:</span>
+            <input type="number" id="rangeToInput" class="form-input font-en" value="5" min="1" style="width: 60px; padding: 0.25rem 0.4rem; text-align: center;">
+          </div>
+        </div>
+
+        <div class="queue-card-list" id="queueList"></div>
+      </section>
+
+      <!-- 3. LIVE TRANSLATION WORKSPACE -->
+      <section class="workspace-section hidden" id="workspaceSection">
+        <!-- Toolbar -->
+        <div class="workspace-toolbar">
+          <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+            <span style="font-weight: 800; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="activeDocTitle">سند</span>
+            <span class="badge-pill font-en" id="activeDocModelBadge">Model: -</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <select id="tonePresetSelect" class="form-select" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; width: auto;">
+              <option value="formal">رسمی</option>
+              <option value="fluent" selected>روان</option>
+              <option value="colloquial">محاوره</option>
+            </select>
+
+            <label style="font-size: 0.78rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+              <input type="checkbox" id="syncScrollCheckbox" checked style="accent-color: var(--blue-accent);">
+              <span>اسکرول همگام</span>
+            </label>
+
+            <button class="btn-secondary" id="exportMenuBtn" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              خروجی
+            </button>
+          </div>
+        </div>
+
+        <!-- Mobile Tabs for Narrow Screens (< 768px) -->
+        <div class="mobile-view-tabs" id="mobileViewTabs">
+          <button class="mobile-tab-btn active" data-view="target">ترجمه فارسی</button>
+          <button class="mobile-tab-btn" data-view="source">متن اصلی</button>
+          <button class="mobile-tab-btn" data-view="both">هردو (عمودی)</button>
+        </div>
+
+        <div class="split-pane-container" id="splitPaneContainer" data-mobile-view="target">
+          <!-- Source (LTR) -->
+          <div class="pane pane-source" id="sourcePane">
+            <div class="pane-header">
+              <span>متن مبدأ (اصلی)</span>
+              <span id="sourceStats">۰ کلمه</span>
+            </div>
+            <div class="pane-content font-en" id="sourcePaneContent"></div>
+          </div>
+
+          <!-- Target (RTL Editable) -->
+          <div class="pane pane-target" id="targetPane">
+            <div class="pane-header">
+              <span>ترجمه مقصد (فارسی - ویرایش مستقیم و ذخیره خودکار)</span>
+              <span id="targetStats">۰ کلمه</span>
+            </div>
+            <div class="pane-content font-fa" id="targetPaneContent"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW CONTAINER 2: TRANSLATION HISTORY TAB -->
+    <div id="historyViewContainer" class="hidden" style="display: flex; flex-direction: column; gap: 1.25rem;">
+      <section class="history-section">
+        <div class="history-header">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <svg class="icon icon-lg" style="color: var(--blue-accent);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 800;">تاریخچه اسناد و ترجمه‌ها</h3>
+              <p style="font-size: 0.76rem; color: var(--text-secondary);">تمام اسناد، قطعات و ویرایش‌ها به صورت دائمی در پایگاه‌داده محلی مرورگر (IndexedDB) نگهداری می‌شوند.</p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <button class="btn-danger-outline" id="clearAllHistoryBtn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              پاکسازی تمام تاریخچه
+            </button>
+          </div>
+        </div>
+
+        <div class="history-grid" id="historyGrid"></div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- ==========================================================================
+       FOOTER
+       ========================================================================== -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <span>ساخته شده با</span>
+      <svg class="icon-heart" viewBox="0 0 24 24" aria-label="عشق"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      <span>توسط <strong>صخره</strong>.</span>
+      <span class="footer-divider">•</span>
+      <span>با فونت ملی <strong>وزیرمتن</strong>، ساخته شده توسط زنده‌یاد «<strong>صابر راستی‌کردار</strong>»</span>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       SETTINGS DRAWER
+       ========================================================================== -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="settingsDrawer" aria-hidden="true">
+    <div class="drawer-header">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span style="font-weight: 800;">تنظیمات موتور و مدل‌ها</span>
+      </div>
+      <button class="btn-icon" id="closeSettingsBtn"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="ollamaTab">Ollama (محلی)</button>
+        <button class="tab-btn" data-tab="googleTab">Google Translate</button>
+      </div>
+
+      <!-- Tab 1: Ollama -->
+      <div id="ollamaTab" class="tab-pane">
+        <div class="form-group" style="margin-bottom: 0.9rem;">
+          <label class="form-label" for="ollamaHostInput">آدرس لوکال Ollama:</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="ollamaHostInput" class="form-input font-en" value="http://127.0.0.1:11434">
+            <button class="btn-secondary" id="probeOllamaBtn" style="white-space: nowrap; font-size: 0.8rem;">
+              بررسی
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.9rem;">
+          <label class="form-label" for="ollamaModelSelect">انتخاب مدل فعال:</label>
+          <select id="ollamaModelSelect" class="form-select font-en">
+            <option value="">درحال جستجوی مدل‌ها...</option>
+          </select>
+          <span class="form-help" id="modelCountHelp">مدل‌ها مستقیماً از Ollama خوانده می‌شوند.</span>
+        </div>
+
+        <!-- CORS Diagnostic Card -->
+        <div class="cors-alert-card hidden" id="corsAlertBox">
+          <div style="display: flex; align-items: center; gap: 0.4rem; color: var(--rose-accent); font-weight: 700;">
+            <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>عدم اتصال به Ollama (خطای دسترسی CORS)</span>
+          </div>
+          <p>دستور زیر را در PowerShell اجرا کرده و Ollama را دوباره باز کنید:</p>
+          <span class="code-pill">[System.Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS', '*', 'User')</span>
+        </div>
+
+        <!-- Temperature -->
+        <div class="form-group" style="margin-top: 0.9rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="ollamaTempRange">میزان خلاقیت (Temperature):</label>
+            <span id="tempValueDisplay" class="badge-pill font-en" style="font-weight: 700; color: var(--blue-accent);">0.3</span>
+          </div>
+          <input type="range" id="ollamaTempRange" min="0" max="1" step="0.05" value="0.3">
+        </div>
+      </div>
+
+      <!-- Tab 2: Google -->
+      <div id="googleTab" class="tab-pane hidden">
+        <div class="form-group">
+          <label class="form-label" for="googleApiKeyInput">Google Cloud Translation API Key (اختیاری):</label>
+          <input type="password" id="googleApiKeyInput" class="form-input font-en" placeholder="AIzaSy...">
+          <span class="form-help">در صورت خالی بودن، از کلاینت فال‌بک رایگان استفاده می‌شود.</span>
+        </div>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 0.25rem 0;">
+
+      <!-- Chunk Size Slider -->
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label class="form-label" for="chunkSizeRange">حجم هر بخش تقطیع (Words):</label>
+          <span id="chunkSizeDisplay" class="badge-pill font-fa" style="font-weight: 700; color: var(--blue-accent);">180 کلمه</span>
+        </div>
+        <input type="range" id="chunkSizeRange" min="60" max="400" step="20" value="180">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="systemPromptArea">پرامپت سیستمی ترجمه فارسی:</label>
+        <textarea id="systemPromptArea" class="form-textarea font-fa" rows="3">شما یک مترجم تخصصی زبان فارسی هستید. متن داده‌شده را با رعایت قواعد نگارشی، نیم‌فاصله‌های دقیق و ساختار نحوی روان و اصیل فارسی ترجمه کنید. تنها متن ترجمه شده را بازگردانید.</textarea>
+      </div>
+
+      <div class="form-group">
+        <label style="font-size: 0.82rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.45rem; cursor: pointer;">
+          <input type="checkbox" id="halfSpaceNormalizeCheck" checked style="accent-color: var(--blue-accent);">
+          <span>اصلاح و اعمال خودکار نیم‌فاصله‌ها در زبان فارسی</span>
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==========================================================================
+       EXPORT MODAL
+       ========================================================================== -->
+  <div class="drawer-backdrop" id="exportModalBackdrop"></div>
+  <div class="drawer" id="exportModal" style="max-width: 380px; left: 50%; top: 50%; bottom: auto; right: auto; transform: translate(-50%, -50%) scale(0.9); border-radius: var(--radius-lg); opacity: 0; pointer-events: none; transition: all var(--transition-normal); width: 92%;">
+    <div class="drawer-header">
+      <span style="font-weight: 800; font-size: 0.95rem;">دریافت خروجی سند</span>
+      <button class="btn-icon" id="closeExportModalBtn"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="drawer-body" style="gap: 0.65rem;">
+      <button class="btn-secondary" id="exportDocxBtn" style="justify-content: flex-start; width: 100%;">
+        <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        دانلود فایل ورد (.docx)
+      </button>
+      <button class="btn-secondary" id="exportMarkdownBtn" style="justify-content: flex-start; width: 100%;">
+        <svg class="icon" style="color: var(--amber-accent);" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM7 15V9l3 3 3-3v6M17 12l-2-2v5"/></svg>
+        دانلود فایل مارک‌داون (.md)
+      </button>
+      <button class="btn-secondary" id="exportTxtBtn" style="justify-content: flex-start; width: 100%;">
+        <svg class="icon" style="color: var(--text-secondary);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+        دانلود فایل متنی (.txt)
+      </button>
+      <button class="btn-secondary" id="copyClipboardBtn" style="justify-content: flex-start; width: 100%;">
+        <svg class="icon" style="color: var(--emerald-accent);" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        کپی متن در کلیپ‌بورد
+      </button>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT ARCHITECTURE & LOGIC
+       ========================================================================== -->
+  <script>
+    /**
+     * AppState: متغیرهای وضعیت در حافظه جاری
+     */
+    const AppState = {
+      theme: localStorage.getItem('st_theme') || 'dark',
+      activeEngine: localStorage.getItem('st_engine') || 'ollama',
+      ollamaHost: localStorage.getItem('st_ollama_host') || 'http://127.0.0.1:11434',
+      ollamaModel: localStorage.getItem('st_ollama_model') || '',
+      ollamaModelsList: [],
+      ollamaTemp: parseFloat(localStorage.getItem('st_ollama_temp') || '0.3'),
+      googleApiKey: localStorage.getItem('st_google_key') || '',
+      chunkWordLimit: parseInt(localStorage.getItem('st_chunk_size') || '180', 10),
+      autoHalfSpace: localStorage.getItem('st_auto_halfspace') !== 'false',
+      tonePreset: 'fluent',
+      systemPrompt: localStorage.getItem('st_system_prompt') || `شما یک مترجم تخصصی زبان فارسی هستید. متن داده‌شده را با رعایت قواعد نگارشی، نیم‌فاصله‌های دقیق و ساختار نحوی روان و اصیل فارسی ترجمه کنید. تنها متن ترجمه شده را بازگردانید.`,
+      
+      // Page & Chunk Range Scope
+      batchScope: 'all',
+      rangeFrom: 1,
+      rangeTo: 5,
+
+      currentTab: 'workspace', // 'workspace' | 'history'
+      queue: [],
+      activeFileId: null,
+      isProcessing: false,
+      abortController: null,
+      syncScrollEnabled: true
+    };
+
+    /**
+     * DOM Cache Elements
+     */
+    const DOM = {
+      html: document.documentElement,
+      themeToggleBtn: document.getElementById('themeToggleBtn'),
+      themeIconSun: document.getElementById('themeIconSun'),
+      themeIconMoon: document.getElementById('themeIconMoon'),
+      engineStatusBadge: document.getElementById('engineStatusBadge'),
+      engineStatusDot: document.getElementById('engineStatusDot'),
+      engineStatusText: document.getElementById('engineStatusText'),
+      quickSyncOllamaBtn: document.getElementById('quickSyncOllamaBtn'),
+      clearQueueBtn: document.getElementById('clearQueueBtn'),
+      
+      // Navigation Tabs
+      navWorkspaceTabBtn: document.getElementById('navWorkspaceTabBtn'),
+      navHistoryTabBtn: document.getElementById('navHistoryTabBtn'),
+      historyCountBadge: document.getElementById('historyCountBadge'),
+      workspaceViewContainer: document.getElementById('workspaceViewContainer'),
+      historyViewContainer: document.getElementById('historyViewContainer'),
+
+      // History section
+      historyGrid: document.getElementById('historyGrid'),
+      clearAllHistoryBtn: document.getElementById('clearAllHistoryBtn'),
+
+      // Dropzone & Queue
+      dropzone: document.getElementById('dropzone'),
+      fileInput: document.getElementById('fileInput'),
+      loadSampleBtn: document.getElementById('loadSampleBtn'),
+      queueSection: document.getElementById('queueSection'),
+      queueList: document.getElementById('queueList'),
+      queueCountBadge: document.getElementById('queueCountBadge'),
+      startBatchBtn: document.getElementById('startBatchBtn'),
+      pauseBatchBtn: document.getElementById('pauseBatchBtn'),
+      
+      // Page & Scope Controls
+      batchScopeSelect: document.getElementById('batchScopeSelect'),
+      customRangeGroup: document.getElementById('customRangeGroup'),
+      rangeFromInput: document.getElementById('rangeFromInput'),
+      rangeToInput: document.getElementById('rangeToInput'),
+
+      // Workspace & Panes
+      workspaceSection: document.getElementById('workspaceSection'),
+      activeDocTitle: document.getElementById('activeDocTitle'),
+      activeDocModelBadge: document.getElementById('activeDocModelBadge'),
+      tonePresetSelect: document.getElementById('tonePresetSelect'),
+      syncScrollCheckbox: document.getElementById('syncScrollCheckbox'),
+      splitPaneContainer: document.getElementById('splitPaneContainer'),
+      mobileViewTabs: document.getElementById('mobileViewTabs'),
+      sourcePaneContent: document.getElementById('sourcePaneContent'),
+      targetPaneContent: document.getElementById('targetPaneContent'),
+      sourceStats: document.getElementById('sourceStats'),
+      targetStats: document.getElementById('targetStats'),
+      
+      // Settings Drawer
+      openSettingsBtn: document.getElementById('openSettingsBtn'),
+      closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+      settingsDrawer: document.getElementById('settingsDrawer'),
+      drawerBackdrop: document.getElementById('drawerBackdrop'),
+      ollamaHostInput: document.getElementById('ollamaHostInput'),
+      ollamaModelSelect: document.getElementById('ollamaModelSelect'),
+      modelCountHelp: document.getElementById('modelCountHelp'),
+      probeOllamaBtn: document.getElementById('probeOllamaBtn'),
+      corsAlertBox: document.getElementById('corsAlertBox'),
+      
+      ollamaTempRange: document.getElementById('ollamaTempRange'),
+      tempValueDisplay: document.getElementById('tempValueDisplay'),
+      chunkSizeRange: document.getElementById('chunkSizeRange'),
+      chunkSizeDisplay: document.getElementById('chunkSizeDisplay'),
+      
+      googleApiKeyInput: document.getElementById('googleApiKeyInput'),
+      systemPromptArea: document.getElementById('systemPromptArea'),
+      halfSpaceNormalizeCheck: document.getElementById('halfSpaceNormalizeCheck'),
+      
+      // Export Modal
+      exportMenuBtn: document.getElementById('exportMenuBtn'),
+      exportModal: document.getElementById('exportModal'),
+      exportModalBackdrop: document.getElementById('exportModalBackdrop'),
+      closeExportModalBtn: document.getElementById('closeExportModalBtn'),
+      exportDocxBtn: document.getElementById('exportDocxBtn'),
+      exportMarkdownBtn: document.getElementById('exportMarkdownBtn'),
+      exportTxtBtn: document.getElementById('exportTxtBtn'),
+      copyClipboardBtn: document.getElementById('copyClipboardBtn'),
+
+      toastContainer: document.getElementById('toastContainer')
+    };
+
+    /**
+     * Toast Notifications Helper
+     */
+    function showToast(message, type = 'info', duration = 3500) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      let icon = `<svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+      if (type === 'success') icon = `<svg class="icon" style="color: var(--emerald-accent);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 11 12 14 22 4"/></svg>`;
+      if (type === 'error') icon = `<svg class="icon" style="color: var(--rose-accent);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+      if (type === 'warning') icon = `<svg class="icon" style="color: var(--amber-accent);" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+      
+      toast.innerHTML = `${icon}<div style="flex: 1;">${message}</div>`;
+      DOM.toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    /**
+     * Time Ago Formatter for Persian UI
+     */
+    function formatTimeAgoFa(isoString) {
+      if (!isoString) return 'نامشخص';
+      const diff = Date.now() - new Date(isoString).getTime();
+      const secs = Math.floor(diff / 1000);
+      if (secs < 60) return 'چند لحظه قبل';
+      const mins = Math.floor(secs / 60);
+      if (mins < 60) return `${mins} دقیقه قبل`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `${hours} ساعت قبل`;
+      const days = Math.floor(hours / 24);
+      if (days < 30) return `${days} روز قبل`;
+      return new Date(isoString).toLocaleDateString('fa-IR');
+    }
+
+    /**
+     * Persian Half-Space Normalizer
+     */
+    const PersianNormalizer = {
+      apply(text) {
+        if (!text) return '';
+        let str = text;
+        str = str.replace(/\u064A/g, 'ی').replace(/\u0643/g, 'ک');
+        str = str.replace(/\b(می|نمی)\s+/g, '$1\u200c');
+        str = str.replace(/\s+(ها|های|هایی|تر|ترین|ام|ات|اش)\b/g, '\u200c$1');
+        str = str.replace(/"([^"]+)"/g, '«$1»');
+        return str;
+      }
+    };
+
+    /**
+     * ==========================================================================
+     * STORAGE LAYER: TranslationDB (IndexedDB)
+     * ==========================================================================
+     */
+    const TranslationDB = {
+      dbName: 'SmartTranslateDB',
+      dbVersion: 1,
+      db: null,
+
+      async init() {
+        // Attempt to request persistent browser storage
+        if (navigator.storage && navigator.storage.persist) {
+          try {
+            const isPersisted = await navigator.storage.persist();
+            if (isPersisted) {
+              console.log('[TranslationDB] Persistent storage granted by browser.');
+            }
+          } catch (err) {
+            console.warn('[TranslationDB] navigator.storage.persist check bypassed:', err);
+          }
+        }
+
+        return new Promise((resolve) => {
+          if (!window.indexedDB) {
+            console.warn('[TranslationDB] IndexedDB is not supported in this environment.');
+            resolve(null);
+            return;
+          }
+
+          const req = window.indexedDB.open(this.dbName, this.dbVersion);
+
+          req.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('documents')) {
+              const store = db.createObjectStore('documents', { keyPath: 'id' });
+              store.createIndex('updatedAt', 'updatedAt', { unique: false });
+              store.createIndex('status', 'status', { unique: false });
+              store.createIndex('fileName', 'fileName', { unique: false });
+            }
+          };
+
+          req.onsuccess = (event) => {
+            this.db = event.target.result;
+            console.log('[TranslationDB] IndexedDB successfully initialized.');
+            resolve(this.db);
+          };
+
+          req.onerror = (event) => {
+            console.error('[TranslationDB] IndexedDB open error:', event.target.error);
+            resolve(null);
+          };
+        });
+      },
+
+      async saveDocument(doc) {
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readwrite');
+            const store = tx.objectStore('documents');
+            doc.updatedAt = new Date().toISOString();
+            if (!doc.createdAt) doc.createdAt = doc.updatedAt;
+            const req = store.put(doc);
+            req.onsuccess = () => resolve(true);
+            req.onerror = (e) => {
+              console.error('[TranslationDB] saveDocument error:', e.target.error);
+              resolve(false);
+            };
+          } catch (e) {
+            console.error('[TranslationDB] saveDocument exception:', e);
+            resolve(false);
+          }
+        });
+      },
+
+      async getDocument(id) {
+        if (!this.db) return null;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readonly');
+            const store = tx.objectStore('documents');
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      },
+
+      async getAllDocuments() {
+        if (!this.db) return [];
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readonly');
+            const store = tx.objectStore('documents');
+            const req = store.getAll();
+            req.onsuccess = () => {
+              const docs = req.result || [];
+              // Sort descending by updatedAt
+              docs.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+              resolve(docs);
+            };
+            req.onerror = () => resolve([]);
+          } catch (e) {
+            resolve([]);
+          }
+        });
+      },
+
+      async updateChunk(documentId, chunk) {
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readwrite');
+            const store = tx.objectStore('documents');
+            const getReq = store.get(documentId);
+
+            getReq.onsuccess = () => {
+              const doc = getReq.result;
+              if (!doc) {
+                resolve(false);
+                return;
+              }
+
+              const idx = doc.chunks.findIndex(c => c.id === chunk.id);
+              if (idx !== -1) {
+                doc.chunks[idx].target = chunk.target;
+                doc.chunks[idx].status = chunk.status;
+                doc.chunks[idx].updatedAt = new Date().toISOString();
+              } else {
+                doc.chunks.push(chunk);
+              }
+
+              // Recalculate progress & last translated chunk
+              const doneCount = doc.chunks.filter(c => c.status === 'done').length;
+              doc.progress = doc.chunks.length > 0 ? Math.round((doneCount / doc.chunks.length) * 100) : 0;
+              if (chunk.status === 'done') {
+                doc.lastTranslatedChunk = chunk.id;
+              }
+              if (doc.progress === 100) {
+                doc.status = 'completed';
+              }
+              doc.updatedAt = new Date().toISOString();
+
+              const putReq = store.put(doc);
+              putReq.onsuccess = () => resolve(true);
+              putReq.onerror = () => resolve(false);
+            };
+
+            getReq.onerror = () => resolve(false);
+          } catch (e) {
+            console.error('[TranslationDB] updateChunk exception:', e);
+            resolve(false);
+          }
+        });
+      },
+
+      async updateDocumentProgress(documentId, progress, status, lastChunkId = null) {
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readwrite');
+            const store = tx.objectStore('documents');
+            const getReq = store.get(documentId);
+
+            getReq.onsuccess = () => {
+              const doc = getReq.result;
+              if (!doc) {
+                resolve(false);
+                return;
+              }
+
+              if (progress !== undefined && progress !== null) doc.progress = progress;
+              if (status) doc.status = status;
+              if (lastChunkId !== null) doc.lastTranslatedChunk = lastChunkId;
+              doc.updatedAt = new Date().toISOString();
+
+              const putReq = store.put(doc);
+              putReq.onsuccess = () => resolve(true);
+              putReq.onerror = () => resolve(false);
+            };
+
+            getReq.onerror = () => resolve(false);
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      },
+
+      async deleteDocument(id) {
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readwrite');
+            const store = tx.objectStore('documents');
+            const req = store.delete(id);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      },
+
+      async clearAll() {
+        if (!this.db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = this.db.transaction(['documents'], 'readwrite');
+            const store = tx.objectStore('documents');
+            const req = store.clear();
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => resolve(false);
+          } catch (e) {
+            resolve(false);
+          }
+        });
+      }
+    };
+
+    /**
+     * Ollama Connection Probing & Model Detection
+     */
+    const OllamaDetector = {
+      async probeAndFetchModels(silent = false) {
+        DOM.engineStatusDot.className = 'status-dot warning pulse-dot';
+        DOM.engineStatusText.textContent = 'درحال اتصال...';
+
+        const candidateHosts = [
+          AppState.ollamaHost,
+          'http://127.0.0.1:11434',
+          'http://localhost:11434'
+        ];
+
+        let connectedHost = null;
+        let models = [];
+
+        for (const host of [...new Set(candidateHosts)]) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            const res = await fetch(`${host}/api/tags`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+              const data = await res.json();
+              models = data.models || [];
+              connectedHost = host;
+              break;
+            }
+          } catch (e) {}
+        }
+
+        if (connectedHost && models.length > 0) {
+          AppState.ollamaHost = connectedHost;
+          AppState.ollamaModelsList = models;
+          localStorage.setItem('st_ollama_host', connectedHost);
+          DOM.ollamaHostInput.value = connectedHost;
+          DOM.corsAlertBox.classList.add('hidden');
+
+          DOM.ollamaModelSelect.innerHTML = '';
+          models.forEach((m, idx) => {
+            const opt = document.createElement('option');
+            const sizeInGB = (m.size / (1024 * 1024 * 1024)).toFixed(1);
+            opt.value = m.name;
+            opt.textContent = `${m.name} (${sizeInGB} GB)`;
+            if (AppState.ollamaModel === m.name || (!AppState.ollamaModel && idx === 0)) {
+              opt.selected = true;
+              AppState.ollamaModel = m.name;
+            }
+            DOM.ollamaModelSelect.appendChild(opt);
+          });
+
+          localStorage.setItem('st_ollama_model', AppState.ollamaModel);
+          DOM.modelCountHelp.textContent = `${models.length} مدل در سیستم شناسایی شد.`;
+          DOM.engineStatusDot.className = 'status-dot active';
+          DOM.engineStatusText.textContent = `${AppState.ollamaModel}`;
+          if (DOM.activeDocModelBadge) DOM.activeDocModelBadge.textContent = `Model: ${AppState.ollamaModel}`;
+
+          if (!silent) showToast(`ارتباط با Ollama برقرار شد: ${AppState.ollamaModel}`, 'success');
+          return true;
+        } else {
+          DOM.corsAlertBox.classList.remove('hidden');
+          DOM.engineStatusDot.className = 'status-dot danger';
+          DOM.engineStatusText.textContent = 'عدم اتصال';
+          if (!silent) showToast('عدم شناسایی Ollama! لطفاً تنظیمات را بررسی کنید.', 'error', 5000);
+          return false;
+        }
+      }
+    };
+
+    /**
+     * Document Parser & Intelligent Chunking
+     */
+    const DocParser = {
+      async parse(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext === 'txt' || ext === 'md') {
+          return await file.text();
+        } else if (ext === 'docx') {
+          const ab = await file.arrayBuffer();
+          const res = await window.mammoth.extractRawText({ arrayBuffer: ab });
+          return res.value;
+        } else if (ext === 'pdf') {
+          const ab = await file.arrayBuffer();
+          const pdf = await window.pdfjsLib.getDocument({ data: ab }).promise;
+          let text = '';
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            text += `\n[--- صفحه ${i} ---]\n` + content.items.map(it => it.str).join(' ') + '\n';
+          }
+          return text;
+        } else if (ext === 'epub') {
+          const zip = await window.JSZip.loadAsync(file);
+          let text = '';
+          const htmlFiles = Object.keys(zip.files).filter(name => /\.(xhtml|html|htm)$/i.test(name));
+          for (const f of htmlFiles) {
+            const raw = await zip.files[f].async('string');
+            const doc = new DOMParser().parseFromString(raw, 'text/html');
+            text += (doc.body.innerText || '') + '\n\n';
+          }
+          return text || 'متن قابل استخراجی در فایل یافت نشد.';
+        }
+        return await file.text();
+      },
+
+      chunkText(text, wordLimit = 180) {
+        const paragraphs = text.split(/\n\s*\n/);
+        const chunks = [];
+        let cur = [];
+        let curWords = 0;
+
+        for (const p of paragraphs) {
+          const trimmed = p.trim();
+          if (!trimmed) continue;
+          const words = trimmed.split(/\s+/).length;
+
+          if (curWords + words > wordLimit && cur.length > 0) {
+            chunks.push(cur.join('\n\n'));
+            cur = [];
+            curWords = 0;
+          }
+          cur.push(trimmed);
+          curWords += words;
+        }
+        if (cur.length > 0) chunks.push(cur.join('\n\n'));
+
+        return chunks.map((c, i) => ({
+          id: i + 1,
+          source: c,
+          target: '',
+          status: 'pending',
+          updatedAt: null
+        }));
+      }
+    };
+
+    /**
+     * Translation Engine (Ollama & Google)
+     */
+    const TranslationCore = {
+      async translate(text, signal) {
+        if (AppState.activeEngine === 'ollama') {
+          return await this.translateOllama(text, signal);
+        } else {
+          return await this.translateGoogle(text, signal);
+        }
+      },
+
+      async translateOllama(text, signal) {
+        if (!AppState.ollamaModel) throw new Error('هیچ مدلی در Ollama انتخاب نشده است.');
+        const res = await fetch(`${AppState.ollamaHost}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: AppState.ollamaModel,
+            prompt: `متن زیر را به فارسی روان و دقیق برگردان:\n\n${text}`,
+            system: `${AppState.systemPrompt}\nلحن: ${AppState.tonePreset}`,
+            stream: false,
+            options: { temperature: AppState.ollamaTemp }
+          }),
+          signal
+        });
+
+        if (!res.ok) throw new Error(`خطا از سرور Ollama: کد وضعیت ${res.status}`);
+        const data = await res.json();
+        let out = data.response ? data.response.trim() : '';
+        if (AppState.autoHalfSpace) out = PersianNormalizer.apply(out);
+        return out;
+      },
+
+      async translateGoogle(text, signal) {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fa&dt=t&q=${encodeURIComponent(text)}`;
+        const res = await fetch(url, { signal });
+        if (!res.ok) throw new Error('خطا در ارتباط با سرویس گوگل');
+        const json = await res.json();
+        let out = json[0].map(item => item[0]).join('');
+        if (AppState.autoHalfSpace) out = PersianNormalizer.apply(out);
+        return out;
+      }
+    };
+
+    /**
+     * ==========================================================================
+     * RESUME MANAGER & BATCH EXECUTION RUNNER
+     * ==========================================================================
+     */
+    const ResumeManager = {
+      async resumeDocument(documentId) {
+        let file = AppState.queue.find(f => f.id === documentId);
+        if (!file) {
+          file = await TranslationDB.getDocument(documentId);
+          if (file) {
+            AppState.queue.push(file);
+          }
+        }
+
+        if (!file) {
+          showToast('سند مورد نظر یافت نشد.', 'error');
+          return;
+        }
+
+        AppState.activeFileId = file.id;
+        UI.switchTab('workspace');
+        UI.renderQueue();
+        UI.renderWorkspace();
+
+        const pendingChunks = file.chunks.filter(c => c.status !== 'done');
+        if (pendingChunks.length === 0) {
+          showToast('تمام بخش‌های این سند قبلاً ترجمه شده‌اند.', 'info');
+          return;
+        }
+
+        showToast(`ادامه ترجمه از بخش #${pendingChunks[0].id}...`, 'info');
+        await this.executeBatch(file, pendingChunks);
+      },
+
+      async executeBatch(file, targetChunks) {
+        if (!file || !targetChunks || targetChunks.length === 0) return;
+
+        AppState.isProcessing = true;
+        AppState.abortController = new AbortController();
+        DOM.startBatchBtn.disabled = true;
+        DOM.pauseBatchBtn.disabled = false;
+
+        file.status = 'processing';
+        await TranslationDB.updateDocumentProgress(file.id, file.progress, 'processing');
+        HistoryManager.renderHistory();
+
+        try {
+          for (const chunk of targetChunks) {
+            if (!AppState.isProcessing) break;
+
+            chunk.status = 'processing';
+            const tgtBlock = document.getElementById(`tgt_${chunk.id}`);
+            if (tgtBlock) tgtBlock.innerHTML = `<span style="color: var(--blue-accent); font-weight: 600;">درحال ترجمه هوشمند...</span>`;
+
+            const translated = await TranslationCore.translate(chunk.source, AppState.abortController.signal);
+            chunk.target = translated;
+            chunk.status = 'done';
+            chunk.updatedAt = new Date().toISOString();
+
+            if (tgtBlock) tgtBlock.innerHTML = translated.replace(/\n/g, '<br>');
+
+            // Recalculate progress
+            const doneCount = file.chunks.filter(c => c.status === 'done').length;
+            file.progress = Math.round((doneCount / file.chunks.length) * 100);
+            file.lastTranslatedChunk = chunk.id;
+            file.updatedAt = new Date().toISOString();
+
+            // CHECKPOINT: Immediate persist per chunk
+            await TranslationDB.updateChunk(file.id, chunk);
+            await TranslationDB.updateDocumentProgress(file.id, file.progress, 'processing', chunk.id);
+
+            // Update UI bars
+            const pb = document.getElementById(`pb_${file.id}`);
+            const pt = document.getElementById(`pt_${file.id}`);
+            if (pb) pb.style.width = `${file.progress}%`;
+            if (pt) pt.textContent = `${file.progress}%`;
+            UI.updateStats(file);
+          }
+
+          if (file.progress === 100) {
+            file.status = 'completed';
+            await TranslationDB.updateDocumentProgress(file.id, 100, 'completed');
+            showToast('ترجمه کل سند با موفقیت به اتمام رسید.', 'success');
+          } else if (AppState.isProcessing) {
+            file.status = 'paused';
+            await TranslationDB.updateDocumentProgress(file.id, file.progress, 'paused');
+            showToast('بخش‌های انتخاب‌شده ترجمه و ذخیره شدند.', 'success');
+          }
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            file.status = 'paused';
+            await TranslationDB.updateDocumentProgress(file.id, file.progress, 'paused');
+            showToast('ترجمه توسط کاربر متوقف شد. پیشرفت تا این لحظه در حافظه محفوظ ماند.', 'warning');
+          } else {
+            file.status = 'error';
+            await TranslationDB.updateDocumentProgress(file.id, file.progress, 'error');
+            showToast(`خطا در ترجمه: ${err.message}`, 'error', 6000);
+          }
+        } finally {
+          AppState.isProcessing = false;
+          DOM.startBatchBtn.disabled = false;
+          DOM.pauseBatchBtn.disabled = true;
+          UI.renderQueue();
+          HistoryManager.renderHistory();
+        }
+      }
+    };
+
+    /**
+     * ==========================================================================
+     * HISTORY MANAGER
+     * ==========================================================================
+     */
+    const HistoryManager = {
+      async renderHistory() {
+        const docs = await TranslationDB.getAllDocuments();
+        DOM.historyCountBadge.textContent = docs.length;
+
+        if (docs.length === 0) {
+          DOM.historyGrid.innerHTML = `
+            <div class="history-empty-state" style="grid-column: 1 / -1;">
+              <svg class="icon icon-xl" style="color: var(--text-muted); opacity: 0.6;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">هنوز سندی ترجمه یا ذخیره نشده است</div>
+              <p style="font-size: 0.82rem; max-width: 420px; line-height: 1.6;">فایل‌های خود را در بخش «محیط ترجمه» بارگذاری کنید تا تمامی پیشرفت‌ها و ویرایش‌ها به صورت دائمی اینجا ثبت گردند.</p>
+            </div>
+          `;
+          return;
+        }
+
+        DOM.historyGrid.innerHTML = '';
+
+        docs.forEach(doc => {
+          const card = document.createElement('div');
+          card.className = 'history-card';
+          
+          const doneChunks = doc.chunks ? doc.chunks.filter(c => c.status === 'done').length : 0;
+          const totalChunks = doc.chunks ? doc.chunks.length : 0;
+          const progress = doc.progress !== undefined ? doc.progress : (totalChunks > 0 ? Math.round((doneChunks / totalChunks) * 100) : 0);
+          
+          // Determine status presentation
+          let statusText = 'در صف';
+          let statusClass = 'status-queued';
+          if (doc.status === 'completed' || progress === 100) {
+            statusText = 'کامل شده';
+            statusClass = 'status-completed';
+          } else if (doc.status === 'processing') {
+            statusText = 'در حال ترجمه';
+            statusClass = 'status-processing';
+          } else if (doc.status === 'paused') {
+            statusText = 'متوقف‌شده';
+            statusClass = 'status-paused';
+          } else if (doc.status === 'error') {
+            statusText = 'دارای خطا';
+            statusClass = 'status-error';
+          }
+
+          const timeAgoStr = formatTimeAgoFa(doc.updatedAt || doc.createdAt);
+          const modelUsed = doc.model || 'نامشخص';
+          const isFinished = progress === 100;
+
+          card.innerHTML = `
+            <div class="history-card-header">
+              <div class="history-file-title">
+                <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span title="${doc.fileName || doc.name}">${doc.fileName || doc.name}</span>
+              </div>
+              <span class="status-badge ${statusClass}">
+                <span class="status-dot ${statusClass === 'status-completed' ? 'active' : (statusClass === 'status-paused' ? 'warning' : (statusClass === 'status-error' ? 'danger' : ''))}"></span>
+                ${statusText}
+              </span>
+            </div>
+
+            <div class="history-meta-row">
+              <span class="badge-pill font-en">${doc.fileType || 'DOC'}</span>
+              <span>•</span>
+              <span class="font-en">${doc.fileSize || ''}</span>
+              <span>•</span>
+              <span style="color: var(--text-muted);">آخرین تغییر: ${timeAgoStr}</span>
+            </div>
+
+            <div class="history-progress-box">
+              <div class="history-progress-labels">
+                <span style="color: var(--text-secondary);">${doneChunks} از ${totalChunks} بخش ترجمه شده</span>
+                <span style="font-weight: 700; color: var(--blue-accent); font-family: var(--font-en);">${progress}%</span>
+              </div>
+              <div class="progress-bar-wrap" style="width: 100%; height: 8px;">
+                <div class="progress-bar-fill" style="width: ${progress}%;"></div>
+              </div>
+            </div>
+
+            <div class="history-meta-row" style="margin-top: -0.2rem;">
+              <span style="color: var(--text-muted); font-size: 0.73rem;">موتور و مدل:</span>
+              <span class="badge-pill font-en" style="font-size: 0.68rem;">${modelUsed}</span>
+            </div>
+
+            <div class="history-card-actions">
+              ${!isFinished ? `
+                <button class="btn-primary resume-btn" style="padding: 0.35rem 0.8rem; font-size: 0.78rem;">
+                  <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  ادامه ترجمه
+                </button>
+              ` : ''}
+
+              <button class="btn-secondary open-btn" style="padding: 0.35rem 0.8rem; font-size: 0.78rem;">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                باز کردن
+              </button>
+
+              <button class="btn-icon danger-hover delete-btn" title="حذف این سند از تاریخچه" style="width: 32px; height: 32px;">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          `;
+
+          // Event: Resume
+          const resumeBtn = card.querySelector('.resume-btn');
+          if (resumeBtn) {
+            resumeBtn.onclick = () => ResumeManager.resumeDocument(doc.id);
+          }
+
+          // Event: Open in Workspace
+          const openBtn = card.querySelector('.open-btn');
+          if (openBtn) {
+            openBtn.onclick = () => {
+              let existing = AppState.queue.find(q => q.id === doc.id);
+              if (!existing) {
+                AppState.queue.push(doc);
+              }
+              AppState.activeFileId = doc.id;
+              UI.switchTab('workspace');
+              UI.renderQueue();
+              UI.renderWorkspace();
+              showToast(`سند "${doc.fileName || doc.name}" باز شد.`, 'info');
+            };
+          }
+
+          // Event: Delete
+          const deleteBtn = card.querySelector('.delete-btn');
+          if (deleteBtn) {
+            deleteBtn.onclick = async () => {
+              if (confirm('آیا مطمئن هستید که این ترجمه حذف شود؟')) {
+                await TranslationDB.deleteDocument(doc.id);
+                // If active in workspace, remove from queue
+                AppState.queue = AppState.queue.filter(q => q.id !== doc.id);
+                if (AppState.activeFileId === doc.id) {
+                  AppState.activeFileId = AppState.queue.length > 0 ? AppState.queue[0].id : null;
+                }
+                UI.renderQueue();
+                UI.renderWorkspace();
+                HistoryManager.renderHistory();
+                showToast('سند با موفقیت از تاریخچه حذف شد.', 'success');
+              }
+            };
+          }
+
+          DOM.historyGrid.appendChild(card);
+        });
+      }
+    };
+
+    /**
+     * ==========================================================================
+     * UI CONTROLLER & EVENT LISTENERS
+     * ==========================================================================
+     */
+    const UI = {
+      async init() {
+        this.applyTheme(AppState.theme);
+        this.syncInputsWithState();
+        this.bindEvents();
+
+        // 1. Initialize IndexedDB
+        await TranslationDB.init();
+
+        // 2. Load History into UI
+        await HistoryManager.renderHistory();
+
+        // 3. Probe Ollama models in background
+        OllamaDetector.probeAndFetchModels(true);
+        this.initSyncScroll();
+
+        // 4. Auto-restore active document if available
+        const allDocs = await TranslationDB.getAllDocuments();
+        if (allDocs.length > 0) {
+          // Check for incomplete or latest doc
+          const candidate = allDocs.find(d => d.status === 'paused' || d.status === 'processing') || allDocs[0];
+          if (candidate) {
+            AppState.queue.push(candidate);
+            AppState.activeFileId = candidate.id;
+            this.renderQueue();
+            this.renderWorkspace();
+          }
+        }
+      },
+
+      switchTab(tabName) {
+        AppState.currentTab = tabName;
+        if (tabName === 'workspace') {
+          DOM.navWorkspaceTabBtn.classList.add('active');
+          DOM.navHistoryTabBtn.classList.remove('active');
+          DOM.workspaceViewContainer.classList.remove('hidden');
+          DOM.historyViewContainer.classList.add('hidden');
+        } else {
+          DOM.navWorkspaceTabBtn.classList.remove('active');
+          DOM.navHistoryTabBtn.classList.add('active');
+          DOM.workspaceViewContainer.classList.add('hidden');
+          DOM.historyViewContainer.classList.remove('hidden');
+          HistoryManager.renderHistory();
+        }
+      },
+
+      applyTheme(theme) {
+        AppState.theme = theme;
+        localStorage.setItem('st_theme', theme);
+        if (theme === 'dark') {
+          DOM.html.classList.add('dark');
+          DOM.themeIconSun.classList.remove('hidden');
+          DOM.themeIconMoon.classList.add('hidden');
+        } else {
+          DOM.html.classList.remove('dark');
+          DOM.themeIconSun.classList.add('hidden');
+          DOM.themeIconMoon.classList.remove('hidden');
+        }
+      },
+
+      syncInputsWithState() {
+        DOM.ollamaTempRange.value = AppState.ollamaTemp;
+        DOM.tempValueDisplay.textContent = AppState.ollamaTemp;
+
+        DOM.chunkSizeRange.value = AppState.chunkWordLimit;
+        DOM.chunkSizeDisplay.textContent = `${AppState.chunkWordLimit} کلمه`;
+
+        DOM.systemPromptArea.value = AppState.systemPrompt;
+        DOM.halfSpaceNormalizeCheck.checked = AppState.autoHalfSpace;
+        DOM.googleApiKeyInput.value = AppState.googleApiKey;
+      },
+
+      async handleFiles(files) {
+        if (!files || files.length === 0) return;
+        DOM.dropzone.classList.add('hidden');
+        DOM.queueSection.classList.remove('hidden');
+
+        for (const file of files) {
+          try {
+            showToast(`درحال پردازش ${file.name}...`, 'info', 1500);
+            const rawText = await DocParser.parse(file);
+            const chunks = DocParser.chunkText(rawText, AppState.chunkWordLimit);
+
+            const fileItem = {
+              id: 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+              fileName: file.name,
+              name: file.name,
+              fileSize: (file.size / 1024).toFixed(1) + ' KB',
+              fileType: file.name.split('.').pop().toUpperCase(),
+              rawText,
+              chunks,
+              progress: 0,
+              status: 'queued',
+              lastTranslatedChunk: 0,
+              model: AppState.ollamaModel || 'Cloud',
+              engine: AppState.activeEngine,
+              tonePreset: AppState.tonePreset,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+
+            // Save immediately to IndexedDB
+            await TranslationDB.saveDocument(fileItem);
+
+            AppState.queue.push(fileItem);
+            if (!AppState.activeFileId) AppState.activeFileId = fileItem.id;
+          } catch (e) {
+            showToast(`خطا در خواندن فایل ${file.name}: ${e.message}`, 'error');
+          }
+        }
+
+        this.renderQueue();
+        this.renderWorkspace();
+        HistoryManager.renderHistory();
+      },
+
+      renderQueue() {
+        if (AppState.queue.length === 0) {
+          DOM.queueSection.classList.add('hidden');
+          DOM.dropzone.classList.remove('hidden');
+          return;
+        }
+
+        DOM.dropzone.classList.add('hidden');
+        DOM.queueSection.classList.remove('hidden');
+        DOM.queueCountBadge.textContent = `${AppState.queue.length} فایل`;
+        DOM.queueList.innerHTML = '';
+
+        AppState.queue.forEach(file => {
+          const isActive = file.id === AppState.activeFileId;
+          const card = document.createElement('div');
+          card.className = `file-card ${isActive ? 'active' : ''}`;
+          card.onclick = () => {
+            AppState.activeFileId = file.id;
+            UI.renderQueue();
+            UI.renderWorkspace();
+          };
+
+          card.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0;">
+              <svg class="icon" style="color: var(--blue-accent);" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <div style="display: flex; flex-direction: column; min-width: 0;">
+                <span style="font-weight: 700; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.fileName || file.name}</span>
+                <span style="font-size: 0.72rem; color: var(--text-secondary);">${file.fileType} • ${file.fileSize} • ${file.chunks.length} بند</span>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="pb_${file.id}" style="width: ${file.progress}%;"></div>
+              </div>
+              <span style="font-size: 0.78rem; font-weight: 700; width: 32px;" id="pt_${file.id}">${file.progress}%</span>
+            </div>
+          `;
+          DOM.queueList.appendChild(card);
+        });
+
+        // Update range inputs max value
+        const activeFile = AppState.queue.find(f => f.id === AppState.activeFileId);
+        if (activeFile) {
+          DOM.rangeToInput.max = activeFile.chunks.length;
+          DOM.rangeFromInput.max = activeFile.chunks.length;
+          if (parseInt(DOM.rangeToInput.value, 10) > activeFile.chunks.length) {
+            DOM.rangeToInput.value = activeFile.chunks.length;
+          }
+        }
+      },
+
+      renderWorkspace() {
+        const file = AppState.queue.find(f => f.id === AppState.activeFileId);
+        if (!file) {
+          DOM.workspaceSection.classList.add('hidden');
+          return;
+        }
+
+        DOM.workspaceSection.classList.remove('hidden');
+        DOM.activeDocTitle.textContent = file.fileName || file.name;
+        if (DOM.activeDocModelBadge) DOM.activeDocModelBadge.textContent = `Model: ${AppState.ollamaModel || file.model || 'Cloud'}`;
+
+        this.updateStats(file);
+
+        DOM.sourcePaneContent.innerHTML = '';
+        DOM.targetPaneContent.innerHTML = '';
+
+        file.chunks.forEach(chunk => {
+          const srcDiv = document.createElement('div');
+          srcDiv.className = 'source-chunk-block';
+          srcDiv.id = `src_${chunk.id}`;
+          srcDiv.innerHTML = `<span class="chunk-index-tag">#${chunk.id}</span><p>${chunk.source.replace(/\n/g, '<br>')}</p>`;
+          DOM.sourcePaneContent.appendChild(srcDiv);
+
+          const tgtDiv = document.createElement('div');
+          tgtDiv.className = 'target-chunk-block';
+          tgtDiv.id = `tgt_${chunk.id}`;
+          tgtDiv.contentEditable = 'true';
+          
+          if (chunk.target) {
+            tgtDiv.innerHTML = chunk.target.replace(/\n/g, '<br>');
+          } else {
+            tgtDiv.innerHTML = `<span style="color: var(--text-muted); font-style: italic;">در انتظار شروع ترجمه...</span>`;
+          }
+
+          // Debounced Auto-Save for manual edits (400ms)
+          tgtDiv.oninput = () => {
+            if (tgtDiv._saveTimer) clearTimeout(tgtDiv._saveTimer);
+            tgtDiv._saveTimer = setTimeout(async () => {
+              chunk.target = tgtDiv.innerText.trim();
+              if (chunk.target && chunk.status !== 'done') {
+                chunk.status = 'done';
+              }
+              await TranslationDB.updateChunk(file.id, chunk);
+              UI.updateStats(file);
+            }, 400);
+          };
+
+          srcDiv.onmouseenter = () => tgtDiv.classList.add('chunk-highlight');
+          srcDiv.onmouseleave = () => tgtDiv.classList.remove('chunk-highlight');
+          tgtDiv.onmouseenter = () => srcDiv.classList.add('chunk-highlight');
+          tgtDiv.onmouseleave = () => srcDiv.classList.remove('chunk-highlight');
+
+          DOM.targetPaneContent.appendChild(tgtDiv);
+        });
+      },
+
+      updateStats(file) {
+        if (!file) return;
+        const srcWords = file.rawText ? file.rawText.split(/\s+/).filter(Boolean).length : 0;
+        const tgtWords = file.chunks ? file.chunks.map(c => c.target).join(' ').split(/\s+/).filter(Boolean).length : 0;
+        DOM.sourceStats.textContent = `${srcWords} کلمه`;
+        DOM.targetStats.textContent = `${tgtWords} کلمه فارسی`;
+      },
+
+      initSyncScroll() {
+        let isSyncing = false;
+        const sync = (from, to) => {
+          if (!AppState.syncScrollEnabled || isSyncing) return;
+          isSyncing = true;
+          const ratio = from.scrollTop / (from.scrollHeight - from.clientHeight);
+          to.scrollTop = ratio * (to.scrollHeight - to.clientHeight);
+          setTimeout(() => { isSyncing = false; }, 40);
+        };
+        DOM.sourcePaneContent.addEventListener('scroll', () => sync(DOM.sourcePaneContent, DOM.targetPaneContent));
+        DOM.targetPaneContent.addEventListener('scroll', () => sync(DOM.targetPaneContent, DOM.sourcePaneContent));
+      },
+
+      bindEvents() {
+        // Tab Switcher
+        DOM.navWorkspaceTabBtn.addEventListener('click', () => this.switchTab('workspace'));
+        DOM.navHistoryTabBtn.addEventListener('click', () => this.switchTab('history'));
+
+        // Theme Toggle
+        DOM.themeToggleBtn.addEventListener('click', () => {
+          this.applyTheme(AppState.theme === 'dark' ? 'light' : 'dark');
+        });
+
+        // Batch Scope Selector
+        DOM.batchScopeSelect.addEventListener('change', (e) => {
+          AppState.batchScope = e.target.value;
+          if (AppState.batchScope === 'custom_range') {
+            DOM.customRangeGroup.classList.remove('hidden');
+          } else {
+            DOM.customRangeGroup.classList.add('hidden');
+          }
+        });
+
+        // Mobile View Switcher Tabs
+        document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.mobile-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const view = btn.dataset.view;
+            DOM.splitPaneContainer.setAttribute('data-mobile-view', view);
+          });
+        });
+
+        // Live Sliders & Settings
+        DOM.ollamaTempRange.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          AppState.ollamaTemp = val;
+          DOM.tempValueDisplay.textContent = val.toFixed(2).replace(/\.?0+$/, '');
+          localStorage.setItem('st_ollama_temp', val.toString());
+        });
+
+        DOM.chunkSizeRange.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          AppState.chunkWordLimit = val;
+          DOM.chunkSizeDisplay.textContent = `${val} کلمه`;
+          localStorage.setItem('st_chunk_size', val.toString());
+        });
+
+        DOM.systemPromptArea.addEventListener('change', (e) => {
+          AppState.systemPrompt = e.target.value;
+          localStorage.setItem('st_system_prompt', AppState.systemPrompt);
+        });
+
+        DOM.halfSpaceNormalizeCheck.addEventListener('change', (e) => {
+          AppState.autoHalfSpace = e.target.checked;
+          localStorage.setItem('st_auto_halfspace', AppState.autoHalfSpace.toString());
+        });
+
+        DOM.googleApiKeyInput.addEventListener('change', (e) => {
+          AppState.googleApiKey = e.target.value.trim();
+          localStorage.setItem('st_google_key', AppState.googleApiKey);
+        });
+
+        DOM.quickSyncOllamaBtn.addEventListener('click', () => {
+          OllamaDetector.probeAndFetchModels(false);
+        });
+
+        // Clear Current Queue ONLY (History preserved!)
+        DOM.clearQueueBtn.addEventListener('click', () => {
+          if (confirm('آیا از پاکسازی صف جاری اسناد اطمینان دارید؟\n(تمام تاریخچه و ترجمه‌های قبلی شما در حافظه دائمی باقی خواهند ماند)')) {
+            if (AppState.abortController) AppState.abortController.abort();
+            AppState.queue = [];
+            AppState.activeFileId = null;
+            AppState.isProcessing = false;
+            
+            DOM.dropzone.classList.remove('hidden');
+            DOM.queueSection.classList.add('hidden');
+            DOM.workspaceSection.classList.add('hidden');
+            showToast('صف اسناد جاری پاکسازی شد. تاریخچه ترجمه‌ها دست‌نخورده باقی ماند.', 'info');
+          }
+        });
+
+        // Clear All History Button
+        DOM.clearAllHistoryBtn.addEventListener('click', async () => {
+          if (confirm('آیا از حذف تمام تاریخچه ترجمه‌ها از پایگاه داده مرورگر اطمینان دارید؟ این عمل غیرقابل بازگشت است.')) {
+            await TranslationDB.clearAll();
+            showToast('تمام تاریخچه ترجمه‌ها با موفقیت پاکسازی شد.', 'success');
+            HistoryManager.renderHistory();
+          }
+        });
+
+        DOM.probeOllamaBtn.addEventListener('click', () => {
+          AppState.ollamaHost = DOM.ollamaHostInput.value.trim();
+          OllamaDetector.probeAndFetchModels(false);
+        });
+
+        DOM.ollamaModelSelect.addEventListener('change', (e) => {
+          AppState.ollamaModel = e.target.value;
+          localStorage.setItem('st_ollama_model', AppState.ollamaModel);
+          DOM.engineStatusText.textContent = `${AppState.ollamaModel}`;
+          if (DOM.activeDocModelBadge) DOM.activeDocModelBadge.textContent = `Model: ${AppState.ollamaModel}`;
+          showToast(`مدل فعال: "${AppState.ollamaModel}"`, 'info');
+        });
+
+        // Drag & Drop
+        DOM.dropzone.addEventListener('dragover', (e) => { e.preventDefault(); DOM.dropzone.classList.add('drag-over'); });
+        DOM.dropzone.addEventListener('dragleave', () => { DOM.dropzone.classList.remove('drag-over'); });
+        DOM.dropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          DOM.dropzone.classList.remove('drag-over');
+          if (e.dataTransfer.files) UI.handleFiles(e.dataTransfer.files);
+        });
+        DOM.fileInput.addEventListener('change', (e) => {
+          if (e.target.files) UI.handleFiles(e.target.files);
+        });
+
+        DOM.loadSampleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const sample = `The integration of client-side document processing with high-performance local Large Language Models (LLMs) represents a massive milestone for data privacy and sovereign computing.\n\nBy executing inference through edge engines such as Ollama, sensitive enterprise documents never traverse public networks, delivering high translation fidelity with low latency.\n\nFurthermore, context-aware batch chunking ensures seamless translation of multi-page technical manuals without exceeding GPU memory constraints.`;
+          const dummy = new File([sample], 'AI_Preserving_Privacy.txt', { type: 'text/plain' });
+          UI.handleFiles([dummy]);
+        });
+
+        // Batch Queue Start
+        DOM.startBatchBtn.addEventListener('click', async () => {
+          const file = AppState.queue.find(f => f.id === AppState.activeFileId);
+          if (!file) return;
+
+          let targetChunks = [];
+          const scope = DOM.batchScopeSelect.value;
+
+          if (scope === 'all') {
+            targetChunks = file.chunks.filter(c => c.status !== 'done');
+          } else if (scope.startsWith('count_')) {
+            const count = parseInt(scope.split('_')[1], 10);
+            targetChunks = file.chunks.filter(c => c.status !== 'done').slice(0, count);
+          } else if (scope === 'custom_range') {
+            const from = parseInt(DOM.rangeFromInput.value, 10) || 1;
+            const to = parseInt(DOM.rangeToInput.value, 10) || file.chunks.length;
+            targetChunks = file.chunks.filter(c => c.id >= from && c.id <= to && c.status !== 'done');
+          }
+
+          if (targetChunks.length === 0) {
+            showToast('تمامی بخش‌ها در این محدوده قبلاً ترجمه شده‌اند.', 'info');
+            return;
+          }
+
+          showToast(`ترجمه ${targetChunks.length} بخش آغاز شد...`, 'info');
+          await ResumeManager.executeBatch(file, targetChunks);
+        });
+
+        // Pause Batch
+        DOM.pauseBatchBtn.addEventListener('click', () => {
+          if (AppState.abortController) AppState.abortController.abort();
+          AppState.isProcessing = false;
+        });
+
+        // Tab Visibility Checkpoint
+        document.addEventListener('visibilitychange', async () => {
+          if (document.hidden && AppState.activeFileId) {
+            const activeFile = AppState.queue.find(f => f.id === AppState.activeFileId);
+            if (activeFile) {
+              await TranslationDB.saveDocument(activeFile);
+            }
+          }
+        });
+
+        // Settings Drawer
+        DOM.openSettingsBtn.addEventListener('click', () => {
+          DOM.settingsDrawer.classList.add('open');
+          DOM.drawerBackdrop.classList.add('open');
+        });
+        const closeDrawer = () => {
+          DOM.settingsDrawer.classList.remove('open');
+          DOM.drawerBackdrop.classList.remove('open');
+        };
+        DOM.closeSettingsBtn.addEventListener('click', closeDrawer);
+        DOM.drawerBackdrop.addEventListener('click', closeDrawer);
+
+        // Export Modal
+        DOM.exportMenuBtn.addEventListener('click', () => {
+          DOM.exportModal.style.opacity = '1';
+          DOM.exportModal.style.pointerEvents = 'auto';
+          DOM.exportModal.style.transform = 'translate(-50%, -50%) scale(1)';
+          DOM.exportModalBackdrop.classList.add('open');
+        });
+        const closeExportModal = () => {
+          DOM.exportModal.style.opacity = '0';
+          DOM.exportModal.style.pointerEvents = 'none';
+          DOM.exportModal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+          DOM.exportModalBackdrop.classList.remove('open');
+        };
+        DOM.closeExportModalBtn.addEventListener('click', closeExportModal);
+        DOM.exportModalBackdrop.addEventListener('click', closeExportModal);
+
+        const getFullTranslatedText = () => {
+          const f = AppState.queue.find(x => x.id === AppState.activeFileId);
+          return f ? f.chunks.map(c => c.target || c.source).join('\n\n') : '';
+        };
+
+        const downloadBlob = (content, filename, type) => {
+          const blob = new Blob([content], { type });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast(`فایل "${filename}" ذخیره شد.`, 'success');
+        };
+
+        DOM.exportTxtBtn.addEventListener('click', () => downloadBlob(getFullTranslatedText(), 'translated.txt', 'text/plain;charset=utf-8'));
+        DOM.exportMarkdownBtn.addEventListener('click', () => downloadBlob(getFullTranslatedText(), 'translated.md', 'text/markdown;charset=utf-8'));
+        DOM.exportDocxBtn.addEventListener('click', () => {
+          const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset='utf-8'><style>body{font-family:'Vazirmatn',sans-serif;direction:rtl;line-height:1.8;}</style></head><body>${getFullTranslatedText().split('\n\n').map(p=>`<p>${p}</p>`).join('')}</body></html>`;
+          downloadBlob(html, 'translated.doc', 'application/msword;charset=utf-8');
+        });
+        DOM.copyClipboardBtn.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(getFullTranslatedText());
+          showToast('متن در کلیپ‌بورد کپی شد.', 'success');
+        });
+
+        // Settings Tabs Switcher
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.remove('hidden');
+            AppState.activeEngine = btn.dataset.tab === 'ollamaTab' ? 'ollama' : 'google';
+            localStorage.setItem('st_engine', AppState.activeEngine);
+            DOM.engineStatusText.textContent = AppState.activeEngine === 'ollama' ? `${AppState.ollamaModel}` : 'Google';
+          });
+        });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => UI.init());
+  </script>
+</body>
+</html>
