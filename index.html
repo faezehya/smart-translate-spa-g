@@ -650,6 +650,18 @@
       opacity: 0.7;
     }
 
+    .typing-cursor {
+      display: inline-block;
+      color: var(--blue-accent);
+      animation: blinkCursor 0.8s infinite;
+      margin-right: 3px;
+      font-weight: 700;
+    }
+    @keyframes blinkCursor {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
     /* Diagnostics Banner */
     .cors-alert-card {
       background: rgba(244, 63, 94, 0.08);
@@ -1144,6 +1156,11 @@
         <span id="engineStatusText">درحال اتصال...</span>
       </div>
 
+      <button class="engine-badge" id="ecoModeHeaderBadge" title="حالت بهینه سیستم‌های ضعیف (Eco Mode) - کلیک برای فعال/غیرفعال‌سازی" style="cursor: pointer; user-select: none;">
+        <div class="status-dot" id="ecoStatusDot" style="background-color: var(--text-muted); box-shadow: none;"></div>
+        <span id="ecoStatusText">Eco: عادی</span>
+      </button>
+
       <button class="btn-icon" id="quickSyncOllamaBtn" title="همگام‌سازی و بررسی مجدد Ollama" aria-label="همگام‌سازی">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
       </button>
@@ -1397,7 +1414,41 @@
           <select id="ollamaModelSelect" class="form-select font-en">
             <option value="">درحال جستجوی مدل‌ها...</option>
           </select>
-          <span class="form-help" id="modelCountHelp">مدل‌ها مستقیماً از Ollama خوانده می‌شوند.</span>
+          <span class="form-help" id="modelCountHelp">مدل‌ها مستقیماً از Ollama خوانده می‌شوند. اولویت اول ترجمه: مدل‌های خانواده Gemma Translate.</span>
+        </div>
+
+        <!-- Eco Mode & Low-Spec Performance Settings -->
+        <div class="form-group" style="background: rgba(56, 189, 248, 0.06); border: 1px solid var(--border-glow); border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 0.9rem;">
+          <label style="font-size: 0.88rem; font-weight: 700; color: var(--blue-accent); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span style="display: flex; align-items: center; gap: 0.4rem;">
+              <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              حالت بهینه سیستم‌های ضعیف (Eco Mode)
+            </span>
+            <input type="checkbox" id="ecoModeToggle" style="accent-color: var(--blue-accent); width: 18px; height: 18px; cursor: pointer;">
+          </label>
+          <span class="form-help" style="margin-top: 0.35rem; display: block; font-size: 0.73rem; line-height: 1.5;">
+            کاهش مصرف حافظه رم (کاهش کانتکست به ۵۱۲ توکن)، استریم زنده کلمات و پردازش فوق‌سریع روی سیستم‌های قدیمی و بدون کارت گرافیک مجزا.
+          </span>
+
+          <div id="ecoParamsGroup" style="margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px dashed var(--border-subtle); padding-top: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+              <label for="numCtxSelect" style="font-size: 0.78rem; color: var(--text-secondary);">پنجره کانتکست (Context Size):</label>
+              <select id="numCtxSelect" class="form-select font-en" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.78rem;">
+                <option value="512" selected>512 (فوق‌سبک - ۵۰٪ رم کمتر)</option>
+                <option value="1024">1024 (متعادل)</option>
+                <option value="2048">2048 (استاندارد)</option>
+              </select>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+              <label for="numThreadSelect" style="font-size: 0.78rem; color: var(--text-secondary);">تعداد نخ‌های CPU (Threads):</label>
+              <select id="numThreadSelect" class="form-select font-en" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.78rem;">
+                <option value="2">2 هسته (سیستم‌های خیلی قدیمی)</option>
+                <option value="4" selected>4 هسته (پیشنهادی)</option>
+                <option value="6">6 هسته</option>
+                <option value="8">8 هسته</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- CORS Diagnostic Card -->
@@ -1510,6 +1561,11 @@
       rangeFrom: 1,
       rangeTo: 5,
 
+      // Performance & Low-Spec Eco Mode
+      ecoMode: localStorage.getItem('st_eco_mode') === 'true',
+      numCtx: parseInt(localStorage.getItem('st_num_ctx') || '512', 10),
+      numThread: parseInt(localStorage.getItem('st_num_thread') || '4', 10),
+
       currentTab: 'workspace', // 'workspace' | 'history'
       queue: [],
       activeFileId: null,
@@ -1529,6 +1585,9 @@
       engineStatusBadge: document.getElementById('engineStatusBadge'),
       engineStatusDot: document.getElementById('engineStatusDot'),
       engineStatusText: document.getElementById('engineStatusText'),
+      ecoModeHeaderBadge: document.getElementById('ecoModeHeaderBadge'),
+      ecoStatusDot: document.getElementById('ecoStatusDot'),
+      ecoStatusText: document.getElementById('ecoStatusText'),
       quickSyncOllamaBtn: document.getElementById('quickSyncOllamaBtn'),
       clearQueueBtn: document.getElementById('clearQueueBtn'),
       
@@ -1580,6 +1639,9 @@
       ollamaHostInput: document.getElementById('ollamaHostInput'),
       ollamaModelSelect: document.getElementById('ollamaModelSelect'),
       modelCountHelp: document.getElementById('modelCountHelp'),
+      ecoModeToggle: document.getElementById('ecoModeToggle'),
+      numCtxSelect: document.getElementById('numCtxSelect'),
+      numThreadSelect: document.getElementById('numThreadSelect'),
       probeOllamaBtn: document.getElementById('probeOllamaBtn'),
       corsAlertBox: document.getElementById('corsAlertBox'),
       
@@ -1878,6 +1940,29 @@
             resolve(false);
           }
         });
+      },
+
+      /**
+       * حافظه ترجمه (Translation Memory): جستجوی سریع در اسناد قبلی برای متون تکراری
+       */
+      async findCachedTranslation(sourceText) {
+        if (!this.db || !sourceText) return null;
+        const trimmed = sourceText.trim();
+        if (trimmed.length < 5) return null;
+        try {
+          const docs = await this.getAllDocuments();
+          for (const doc of docs) {
+            if (!doc.chunks) continue;
+            for (const c of doc.chunks) {
+              if (c.status === 'done' && c.target && c.source && c.source.trim() === trimmed) {
+                return c.target;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[TranslationDB] findCachedTranslation failed:', e);
+        }
+        return null;
       }
     };
 
@@ -1927,11 +2012,34 @@
           DOM.corsAlertBox.classList.add('hidden');
 
           DOM.ollamaModelSelect.innerHTML = '';
+
+          // Sort models: Priority 1: Gemma Translate / Gemma, Priority 2: Lightweight (1B-3B), then others
+          const isGemma = (name) => /gemma|gamma/i.test(name);
+          const isLightweight = (name) => /1\.5b|1b|2b|3b/i.test(name);
+
+          models.sort((a, b) => {
+            const aGemma = isGemma(a.name);
+            const bGemma = isGemma(b.name);
+            if (aGemma && !bGemma) return -1;
+            if (!aGemma && bGemma) return 1;
+            const aLight = isLightweight(a.name);
+            const bLight = isLightweight(b.name);
+            if (aLight && !bLight) return -1;
+            if (!aLight && bLight) return 1;
+            return a.name.localeCompare(b.name);
+          });
+
           models.forEach((m, idx) => {
             const opt = document.createElement('option');
             const sizeInGB = (m.size / (1024 * 1024 * 1024)).toFixed(1);
+            let badge = '';
+            if (isGemma(m.name)) {
+              badge = ' ⭐ اولویت ترجمه (Gemma)';
+            } else if (isLightweight(m.name)) {
+              badge = ' ⚡ بهینه سبک (Eco)';
+            }
             opt.value = m.name;
-            opt.textContent = `${m.name} (${sizeInGB} GB)`;
+            opt.textContent = `${m.name} (${sizeInGB} GB)${badge}`;
             if (AppState.ollamaModel === m.name || (!AppState.ollamaModel && idx === 0)) {
               opt.selected = true;
               AppState.ollamaModel = m.name;
@@ -1940,7 +2048,7 @@
           });
 
           localStorage.setItem('st_ollama_model', AppState.ollamaModel);
-          DOM.modelCountHelp.textContent = `${models.length} مدل در سیستم شناسایی شد.`;
+          DOM.modelCountHelp.innerHTML = `${models.length} مدل در سیستم شناسایی شد.<br><span style="color: var(--blue-accent); font-weight: 700;">⭐ اولویت اول: مدل‌های Gemma Translate (مانند gemma2:2b)</span> | ⚡ سیستم‌های ضعیف: qwen2.5:1.5b یا llama3.2:1b`;
           DOM.engineStatusDot.className = 'status-dot active';
           DOM.engineStatusText.textContent = `${AppState.ollamaModel}`;
           if (DOM.activeDocModelBadge) DOM.activeDocModelBadge.textContent = `Model: ${AppState.ollamaModel}`;
@@ -2028,32 +2136,88 @@
      * Translation Engine (Ollama & Google)
      */
     const TranslationCore = {
-      async translate(text, signal) {
+      async translate(text, signal, onToken = null) {
         if (AppState.activeEngine === 'ollama') {
-          return await this.translateOllama(text, signal);
+          return await this.translateOllama(text, signal, onToken);
         } else {
           return await this.translateGoogle(text, signal);
         }
       },
 
-      async translateOllama(text, signal) {
+      async translateOllama(text, signal, onToken = null) {
         if (!AppState.ollamaModel) throw new Error('هیچ مدلی در Ollama انتخاب نشده است.');
+
+        // Performance options for CPU / low-spec systems
+        const options = {
+          temperature: AppState.ollamaTemp
+        };
+        if (AppState.ecoMode) {
+          options.num_ctx = AppState.numCtx || 512;
+          options.num_thread = AppState.numThread || 4;
+          options.num_predict = 512;
+        } else if (AppState.numCtx) {
+          options.num_ctx = AppState.numCtx;
+        }
+
+        const requestBody = {
+          model: AppState.ollamaModel,
+          prompt: `متن زیر را به فارسی روان و دقیق برگردان:\n\n${text}`,
+          system: `${AppState.systemPrompt}\nلحن: ${AppState.tonePreset}`,
+          stream: true,
+          options
+        };
+
         const res = await fetch(`${AppState.ollamaHost}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: AppState.ollamaModel,
-            prompt: `متن زیر را به فارسی روان و دقیق برگردان:\n\n${text}`,
-            system: `${AppState.systemPrompt}\nلحن: ${AppState.tonePreset}`,
-            stream: false,
-            options: { temperature: AppState.ollamaTemp }
-          }),
+          body: JSON.stringify(requestBody),
           signal
         });
 
         if (!res.ok) throw new Error(`خطا از سرور Ollama: کد وضعیت ${res.status}`);
-        const data = await res.json();
-        let out = data.response ? data.response.trim() : '';
+
+        let fullText = '';
+        if (res.body && res.body.getReader) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // keep trailing incomplete segment
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed.response) {
+                  fullText += parsed.response;
+                  if (onToken) onToken(fullText);
+                }
+              } catch (e) {
+                // Ignore chunk JSON parse fragment
+              }
+            }
+          }
+          if (buffer.trim()) {
+            try {
+              const parsed = JSON.parse(buffer.trim());
+              if (parsed.response) {
+                fullText += parsed.response;
+                if (onToken) onToken(fullText);
+              }
+            } catch (e) {}
+          }
+        } else {
+          const data = await res.json();
+          fullText = data.response ? data.response.trim() : '';
+        }
+
+        let out = fullText.trim();
         if (AppState.autoHalfSpace) out = PersianNormalizer.apply(out);
         return out;
       },
@@ -2122,9 +2286,28 @@
 
             chunk.status = 'processing';
             const tgtBlock = document.getElementById(`tgt_${chunk.id}`);
-            if (tgtBlock) tgtBlock.innerHTML = `<span style="color: var(--blue-accent); font-weight: 600;">درحال ترجمه هوشمند...</span>`;
+            if (tgtBlock) tgtBlock.innerHTML = `<span style="color: var(--blue-accent); font-weight: 600;">درحال آماده‌سازی ترجمه...</span>`;
 
-            const translated = await TranslationCore.translate(chunk.source, AppState.abortController.signal);
+            // 1. Translation Memory Check (Zero CPU cost if matching chunk found)
+            let translated = await TranslationDB.findCachedTranslation(chunk.source);
+            if (translated) {
+              if (tgtBlock) {
+                tgtBlock.innerHTML = `<span style="color: var(--emerald-accent); font-size: 0.78rem; display: block; margin-bottom: 4px;">⚡ بازیابی فوری از حافظه ترجمه (Cache)</span>` + translated.replace(/\n/g, '<br>');
+              }
+              await new Promise(r => setTimeout(r, 60)); // Micro-yield for smooth UI update
+            } else {
+              // 2. Token Streaming into UI
+              translated = await TranslationCore.translate(
+                chunk.source,
+                AppState.abortController.signal,
+                (liveText) => {
+                  if (tgtBlock) {
+                    tgtBlock.innerHTML = liveText.replace(/\n/g, '<br>') + '<span class="typing-cursor">▌</span>';
+                  }
+                }
+              );
+            }
+
             chunk.target = translated;
             chunk.status = 'done';
             chunk.updatedAt = new Date().toISOString();
@@ -2405,6 +2588,23 @@
         DOM.systemPromptArea.value = AppState.systemPrompt;
         DOM.halfSpaceNormalizeCheck.checked = AppState.autoHalfSpace;
         DOM.googleApiKeyInput.value = AppState.googleApiKey;
+
+        // Eco Mode
+        if (DOM.ecoModeToggle) DOM.ecoModeToggle.checked = AppState.ecoMode;
+        if (DOM.numCtxSelect) DOM.numCtxSelect.value = AppState.numCtx.toString();
+        if (DOM.numThreadSelect) DOM.numThreadSelect.value = AppState.numThread.toString();
+        this.updateEcoBadge();
+      },
+
+      updateEcoBadge() {
+        if (!DOM.ecoModeHeaderBadge) return;
+        if (AppState.ecoMode) {
+          DOM.ecoModeHeaderBadge.classList.remove('hidden');
+          if (DOM.ecoStatusDot) DOM.ecoStatusDot.className = 'status-dot active';
+          if (DOM.ecoStatusText) DOM.ecoStatusText.textContent = `Eco: ${AppState.numCtx}ctx`;
+        } else {
+          DOM.ecoModeHeaderBadge.classList.add('hidden');
+        }
       },
 
       async handleFiles(files) {
@@ -2643,6 +2843,51 @@
         DOM.quickSyncOllamaBtn.addEventListener('click', () => {
           OllamaDetector.probeAndFetchModels(false);
         });
+
+        // Eco Mode & Low-Spec Performance Listeners
+        if (DOM.ecoModeToggle) {
+          DOM.ecoModeToggle.addEventListener('change', (e) => {
+            AppState.ecoMode = e.target.checked;
+            localStorage.setItem('st_eco_mode', AppState.ecoMode.toString());
+            if (AppState.ecoMode) {
+              AppState.chunkWordLimit = 90;
+              DOM.chunkSizeRange.value = 90;
+              DOM.chunkSizeDisplay.textContent = `90 کلمه`;
+              localStorage.setItem('st_chunk_size', '90');
+              showToast('حالت بهینه فعال شد: کانتکست محدود به ۵۱۲ توکن، استریم زنده کلمات و بندهای ۹۰ کلمه‌ای.', 'success');
+            } else {
+              AppState.chunkWordLimit = 180;
+              DOM.chunkSizeRange.value = 180;
+              DOM.chunkSizeDisplay.textContent = `180 کلمه`;
+              localStorage.setItem('st_chunk_size', '180');
+              showToast('حالت استاندارد فعال شد.', 'info');
+            }
+            this.updateEcoBadge();
+          });
+        }
+
+        if (DOM.numCtxSelect) {
+          DOM.numCtxSelect.addEventListener('change', (e) => {
+            AppState.numCtx = parseInt(e.target.value, 10);
+            localStorage.setItem('st_num_ctx', AppState.numCtx.toString());
+            this.updateEcoBadge();
+            showToast(`اندازه کانتکست تنظیم شد: ${AppState.numCtx} توکن`, 'info');
+          });
+        }
+
+        if (DOM.numThreadSelect) {
+          DOM.numThreadSelect.addEventListener('change', (e) => {
+            AppState.numThread = parseInt(e.target.value, 10);
+            localStorage.setItem('st_num_thread', AppState.numThread.toString());
+            showToast(`تعداد نخ پردازش پردازنده: ${AppState.numThread}`, 'info');
+          });
+        }
+
+        if (DOM.ecoModeHeaderBadge) {
+          DOM.ecoModeHeaderBadge.addEventListener('click', () => {
+            DOM.openSettingsBtn.click();
+          });
+        }
 
         // Clear Current Queue ONLY (History preserved!)
         DOM.clearQueueBtn.addEventListener('click', () => {
